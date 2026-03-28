@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Confirmação de Presença</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #fbcfe8, #ddd6fe);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+      color: #111827;
+    }
+
+    p {
+      color: #4b5563;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid #d1d5db;
+      font-size: 16px;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    button {
+      background: #ec4899;
+      color: #fff;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+      background: #db2777;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .erro {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 12px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .sucesso {
+      background: #dcfce7;
+      color: #166534;
+      padding: 12px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .lista {
+      max-height: 500px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .item {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      background: #fafafa;
+    }
+
+    .item strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+
+    .badge-lotado {
+      color: #b91c1c;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .resumo {
+      background: #f9fafb;
+      padding: 14px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 850px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h1>🎉 Confirmação de Presença</h1>
+      <p>Confirme sua presença no aniversário</p>
+
+      <div class="resumo">
+        <p><strong>Limite de vagas:</strong> <span id="limiteVagas">30</span></p>
+        <p><strong>Total confirmado:</strong> <span id="totalConfirmado">0</span></p>
+        <p><strong>Vagas restantes:</strong> <span id="vagasRestantes">30</span></p>
+        <p id="statusLotacao" class="badge-lotado" style="display: none;">🚫 Evento lotado</p>
+      </div>
+
+      <div id="mensagemBox"></div>
+
+      <div class="field">
+        <input type="text" id="nome" placeholder="Seu nome" />
+      </div>
+
+      <div class="field">
+        <input type="number" id="quantidade" min="1" value="1" />
+      </div>
+
+      <div class="field">
+        <select id="vai">
+          <option value="sim">Vou participar</option>
+          <option value="nao">Não poderei ir</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <textarea id="mensagem" placeholder="Deixe uma mensagem (opcional)"></textarea>
+      </div>
+
+      <button id="btnConfirmar">Confirmar Presença via WhatsApp</button>
+    </div>
+
+    <div class="card">
+      <h2>📋 Lista de Confirmações</h2>
+      <p>Veja quem já confirmou presença</p>
+      <div id="lista" class="lista">
+        <p id="semConfirmacoes">Nenhuma confirmação ainda.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LIMITE_VAGAS = 30;
+    const WHATSAPP_NUMERO = "5511999999999"; 
+    // Troque pelo número real. Ex: 5511988887777
+
+    const nomeInput = document.getElementById("nome");
+    const quantidadeInput = document.getElementById("quantidade");
+    const vaiSelect = document.getElementById("vai");
+    const mensagemInput = document.getElementById("mensagem");
+    const btnConfirmar = document.getElementById("btnConfirmar");
+    const listaDiv = document.getElementById("lista");
+    const mensagemBox = document.getElementById("mensagemBox");
+
+    const totalConfirmadoEl = document.getElementById("totalConfirmado");
+    const vagasRestantesEl = document.getElementById("vagasRestantes");
+    const limiteVagasEl = document.getElementById("limiteVagas");
+    const statusLotacaoEl = document.getElementById("statusLotacao");
+
+    limiteVagasEl.textContent = LIMITE_VAGAS;
+
+    let lista = JSON.parse(localStorage.getItem("rsvp_lista")) || [];
+
+    function salvarLista() {
+      localStorage.setItem("rsvp_lista", JSON.stringify(lista));
+    }
+
+    function mostrarMensagem(texto, tipo = "erro") {
+      mensagemBox.innerHTML = `<div class="${tipo}">${texto}</div>`;
+    }
+
+    function limparMensagem() {
+      mensagemBox.innerHTML = "";
+    }
+
+    function calcularTotalPessoas() {
+      return lista
+        .filter(item => item.vai)
+        .reduce((acc, item) => acc + Number(item.quantidade), 0);
+    }
+
+    function atualizarResumo() {
+      const totalPessoas = calcularTotalPessoas();
+      const vagasRestantes = LIMITE_VAGAS - totalPessoas;
+
+      totalConfirmadoEl.textContent = totalPessoas;
+      vagasRestantesEl.textContent = vagasRestantes >= 0 ? vagasRestantes : 0;
+
+      const eventoLotado = vagasRestantes <= 0;
+
+      if (eventoLotado) {
+        statusLotacaoEl.style.display = "block";
+      } else {
+        statusLotacaoEl.style.display = "none";
+      }
+
+      if (vaiSelect.value === "sim" && eventoLotado) {
+        btnConfirmar.disabled = true;
+      } else {
+        btnConfirmar.disabled = false;
+      }
+    }
+
+    function renderizarLista() {
+      if (lista.length === 0) {
+        listaDiv.innerHTML = '<p id="semConfirmacoes">Nenhuma confirmação ainda.</p>';
+        atualizarResumo();
+        return;
+      }
+
+      listaDiv.innerHTML = "";
+
+      lista.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <strong>${item.nome}</strong>
+          <p>${item.vai ? `✅ Vai com ${item.quantidade} pessoa(s)` : "❌ Não vai"}</p>
+          ${item.mensagem ? `<p>💬 ${item.mensagem}</p>` : ""}
+        `;
+        listaDiv.appendChild(div);
+      });
+
+      atualizarResumo();
+    }
+
+    function limparFormulario() {
+      nomeInput.value = "";
+      quantidadeInput.value = 1;
+      vaiSelect.value = "sim";
+      mensagemInput.value = "";
+      quantidadeInput.disabled = false;
+    }
+
+    function confirmarPresenca() {
+      limparMensagem();
+
+      const nome = nomeInput.value.trim();
+      const vai = vaiSelect.value === "sim";
+      const mensagem = mensagemInput.value.trim();
+      const quantidade = vai ? Math.max(1, Number(quantidadeInput.value) || 1) : 0;
+
+      if (!nome) {
+        mostrarMensagem("Por favor, informe seu nome.");
+        return;
+      }
+
+      const totalPessoas = calcularTotalPessoas();
+      const vagasRestantes = LIMITE_VAGAS - totalPessoas;
+
+      if (vai && quantidade > vagasRestantes) {
+        if (vagasRestantes > 0) {
+          mostrarMensagem(`Restam apenas ${vagasRestantes} vaga(s).`);
+        } else {
+          mostrarMensagem("As vagas já foram preenchidas.");
+        }
+        return;
+      }
+
+      const novo = {
+        id: Date.now(),
+        nome,
+        quantidade,
+        vai,
+        mensagem
+      };
+
+      lista.unshift(novo);
+      salvarLista();
+      renderizarLista();
+
+      const textoWhatsapp = encodeURIComponent(
+        vai
+          ? `Olá! Meu nome é ${nome} e confirmo presença no aniversário para ${quantidade} pessoa(s).${mensagem ? ` Mensagem: ${mensagem}` : ""}`
+          : `Olá! Meu nome é ${nome} e infelizmente não poderei ir ao aniversário.${mensagem ? ` Mensagem: ${mensagem}` : ""}`
+      );
+
+      window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${textoWhatsapp}`, "_blank");
+
+      mostrarMensagem("Confirmação registrada com sucesso.", "sucesso");
+      limparFormulario();
+      atualizarResumo();
+    }
+
+    vaiSelect.addEventListener("change", function () {
+      const vai = vaiSelect.value === "sim";
+      quantidadeInput.disabled = !vai;
+
+      const totalPessoas = calcularTotalPessoas();
+      const vagasRestantes = LIMITE_VAGAS - totalPessoas;
+      const eventoLotado = vagasRestantes <= 0;
+
+      btnConfirmar.disabled = vai && eventoLotado;
+    });
+
+    btnConfirmar.addEventListener("click", confirmarPresenca);
+
+    renderizarLista();
+  </script>
+
+</body>
+</html>
