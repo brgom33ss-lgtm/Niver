@@ -186,8 +186,8 @@
   </div>
 
   <script>
-    const LIMITE_VAGAS = 30;
-    const WHATSAPP_NUMERO = "5511999999999"; 
+    const LIMITE_VAGAS = 100;
+    const WHATSAPP_NUMERO = "9891089191"; 
     // Troque pelo número real. Ex: 5511988887777
 
     const nomeInput = document.getElementById("nome");
